@@ -1,1 +1,1 @@
-# CIS-520-Proj-1
+# CIS-520-Pintos
