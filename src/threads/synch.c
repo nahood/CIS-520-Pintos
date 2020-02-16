@@ -68,6 +68,7 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
+      // Order waiters by priority instead of pushing to the front
       list_insert_ordered (&sema->waiters, &thread_current ()->elem, thread_prio_gt, NULL);
       thread_block ();
     }
@@ -114,12 +115,14 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) {
+    // Sort waiters by priority before popping
     list_sort (&sema->waiters, thread_prio_gt, NULL);
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
   }
   sema->value++;
 
+  // Give up priority if it has been changed
   thread_yield ();
   intr_set_level (old_level);
 }
@@ -203,9 +206,12 @@ lock_acquire (struct lock *lock)
   struct thread *t = thread_current ();
   enum intr_level old_level = intr_disable();
 
+  // Priority is only donated when the lock has a holder
   if (lock->holder != NULL)
   {
+    // Donate our priority to the lock holder because this thread should always be higher
     thread_donate_prio (lock->holder, t);
+    // Set the threads waiting_on lock pointer
     t->waiting_on = lock;
   }
 
@@ -214,6 +220,7 @@ lock_acquire (struct lock *lock)
   sema_down (&lock->semaphore);
 
   old_level = intr_disable();
+  // No longer waiting for a lock
   t->waiting_on = NULL;
   intr_set_level(old_level);
 
@@ -251,6 +258,7 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  // Set priorities back to normal
   thread_release_donations(lock);
 
   lock->holder = NULL;
@@ -323,6 +331,7 @@ cond_wait (struct condition *cond, struct lock *lock)
   lock_acquire (lock);
 }
 
+// Comparison function for sorting condition variables by priority
 bool condvar_prio_gt (struct list_elem *left, struct list_elem *right)
 {
   struct semaphore_elem *left_s = list_entry(left, struct semaphore_elem, elem);  
@@ -347,6 +356,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock_held_by_current_thread (lock));
 
   if (!list_empty (&cond->waiters)) {
+    // Sort waiters before popping the front
     list_sort (&cond->waiters, condvar_prio_gt, NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);

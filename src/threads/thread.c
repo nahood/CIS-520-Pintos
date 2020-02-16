@@ -203,6 +203,7 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  // Yield the thread for priorities
   thread_yield ();
 
   return tid;
@@ -224,6 +225,7 @@ thread_block (void)
   schedule ();
 }
 
+// Comparison function for inserting and ordering a thread's priority
 bool thread_prio_gt (struct list_elem *a, struct list_elem *b)
 {
     struct thread *tA = list_entry (a, struct thread, elem);
@@ -232,6 +234,7 @@ bool thread_prio_gt (struct list_elem *a, struct list_elem *b)
     return tA->priority > tB->priority;
 }
 
+// Comparison function for inserting and ordering a thread's donor list priority
 bool thread_donor_prio_gt (struct list_elem *a, struct list_elem *b)
 {
     struct thread *tA = list_entry (a, struct thread, donor_elem);
@@ -240,43 +243,47 @@ bool thread_donor_prio_gt (struct list_elem *a, struct list_elem *b)
     return tA->priority > tB->priority;
 }
 
+// Recursively donates a thread's priority from "from" thread to "to" thread
 void thread_donate_prio (struct thread *to, struct thread *from)
 {
+  // Save old interrupt level
   enum intr_level old_level = intr_disable();
-
+  // Insert the from thread to thread's donor list and recalculate its priority
   list_insert_ordered (&to->donor_list, &from->donor_elem, thread_donor_prio_gt, NULL);
-
   recalculate_priority(to);
 
+  // Re-enable interrupts
   intr_set_level (old_level);
 }
 
-/// Interrupts should be turned off
+// Sets a thread's priority to the highest priority thread in its donor list
+// Interrupts should be turned off before calling this
 void recalculate_priority(struct thread *t)
 {
+  // Return old priority if there are no donors
   if (list_empty (&t->donor_list)) {
     t->priority = t->old_priority;
   } 
   else {
+    // otherwise set the thread's priority to the highest in its donor list
     struct thread *front = list_entry (list_front (&t->donor_list), struct thread, donor_elem);
     t->priority = front->priority;
 
+    // recursively donate priority 
     if (t->waiting_on != NULL) {
        list_remove (&t->donor_elem);
        thread_donate_prio (t->waiting_on->holder, t);
     }
   }
-
-  //list_sort(&ready_list, thread_prio_gt, NULL);
-  //list_remove (&t->elem);
-  //list_insert_ordered (&ready_list, &t->elem, thread_prio_gt, NULL);
 }
 
+// Removes all of the threads from the donor list are waiting for the lock being released
 void thread_release_donations (struct lock *lock)
 {
   enum intr_level old_level = intr_disable();
   struct list_elem *e;
 
+  // Iterate through donor list
   for (e = list_begin (&lock->holder->donor_list); e != list_end (&lock->holder->donor_list);
        e = list_next (e))
   {
@@ -310,6 +317,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+  // Insert the element ordered by priority for priority scheduling
   list_insert_ordered (&ready_list, &t->elem, thread_prio_gt, NULL);
 
   t->status = THREAD_READY;
