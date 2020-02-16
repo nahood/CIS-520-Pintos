@@ -423,8 +423,6 @@ thread_set_priority (int new_priority)
   if (new_priority < highest->priority)
     thread_yield();
   }
-  
-
 }
 
 /* Returns the current thread's priority. */

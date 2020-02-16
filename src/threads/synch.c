@@ -323,6 +323,14 @@ cond_wait (struct condition *cond, struct lock *lock)
   lock_acquire (lock);
 }
 
+bool condvar_prio_gt (struct list_elem *left, struct list_elem *right)
+{
+  struct semaphore_elem *left_s = list_entry(left, struct semaphore_elem, elem);  
+  struct semaphore_elem *right_s = list_entry(right, struct semaphore_elem, elem);  
+  
+  return (thread_prio_gt(list_front(&left_s->semaphore.waiters), list_front(&right_s->semaphore.waiters)));
+}
+
 /* If any threads are waiting on COND (protected by LOCK), then
    this function signals one of them to wake up from its wait.
    LOCK must be held before calling this function.
@@ -338,9 +346,11 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
 
-  if (!list_empty (&cond->waiters)) 
+  if (!list_empty (&cond->waiters)) {
+    list_sort (&cond->waiters, condvar_prio_gt, NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
+  }
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
