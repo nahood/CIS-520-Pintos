@@ -198,6 +198,8 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  list_init (&t->donor_list);
+
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -224,34 +226,66 @@ thread_block (void)
 
 bool thread_prio_gt (struct list_elem *a, struct list_elem *b)
 {
-    struct thread *tA;
-    struct thread *tB;
-
-    tA = list_entry (a, struct thread, elem);
-    tB = list_entry (b, struct thread, elem);
+    struct thread *tA = list_entry (a, struct thread, elem);
+    struct thread *tB = list_entry (b, struct thread, elem);
 
     return tA->priority > tB->priority;
 }
 
-void thread_donate_prio (struct thread *t, int priority)
+bool thread_donor_prio_gt (struct list_elem *a, struct list_elem *b)
+{
+    struct thread *tA = list_entry (a, struct thread, donor_elem);
+    struct thread *tB = list_entry (b, struct thread, donor_elem);
+
+    return tA->priority > tB->priority;
+}
+
+void thread_donate_prio (struct thread *to, struct thread *from)
 {
   enum intr_level old_level = intr_disable();
 
-  if (t->oldPriority == 0)
-    t->oldPriority = t->priority;
+  list_insert_ordered (&to->donor_list, &from->donor_elem, thread_donor_prio_gt, NULL);
 
-  t->priority = priority;
-  list_sort (&ready_list, thread_prio_gt, NULL);
+  recalculate_priority(to);
+
   intr_set_level (old_level);
 }
 
-void thread_release_donation (struct thread *t)
+/// Interrupts should be turned off
+void recalculate_priority(struct thread *t)
 {
-    if (t->oldPriority > 0)
-    {
-        t->priority = t->oldPriority;
-        t->oldPriority = 0;
+  if (list_empty (&t->donor_list)) {
+    t->priority = t->old_priority;
+  } 
+  else {
+    struct thread *front = list_entry (list_front (&t->donor_list), struct thread, donor_elem);
+    t->priority = front->priority;
+
+    if (t->waiting_on != NULL) {
+       list_remove (&t->donor_elem);
+       thread_donate_prio (t->waiting_on->holder, t);
     }
+  }
+}
+
+void thread_release_donations (struct lock *lock)
+{
+  enum intr_level old_level = intr_disable();
+  struct list_elem *e;
+
+  for (e = list_begin (&lock->holder->donor_list); e != list_end (&lock->holder->donor_list);
+       e = list_next (e))
+  {
+    struct thread *cur = list_entry (e, struct thread, donor_elem);
+
+    if (cur->waiting_on == lock) {
+      list_remove (e);
+    }
+  }
+
+  recalculate_priority(lock->holder);
+
+  intr_set_level (old_level);
 }
 
 
@@ -507,8 +541,10 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
-  t->oldPriority = 0;
+  t->old_priority = priority;
   t->magic = THREAD_MAGIC;
+
+  list_init (&t->donor_list);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
