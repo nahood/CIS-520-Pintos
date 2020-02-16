@@ -201,6 +201,8 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  thread_yield ();
+
   return tid;
 }
 
@@ -230,6 +232,30 @@ bool thread_prio_gt (struct list_elem *a, struct list_elem *b)
 
     return tA->priority > tB->priority;
 }
+
+void thread_donate_prio (struct thread *t, int priority)
+{
+  enum intr_level old_level = intr_disable();
+
+  if (t->oldPriority == 0)
+    t->oldPriority = t->priority;
+
+  t->priority = priority;
+  list_sort (&ready_list, thread_prio_gt, NULL);
+  intr_set_level (old_level);
+}
+
+void thread_release_donation (struct thread *t)
+{
+    if (t->oldPriority > 0)
+    {
+        t->priority = t->oldPriority;
+        t->oldPriority = 0;
+
+        thread_yield ();
+    }
+}
+
 
 /* Transitions a blocked thread T to the ready-to-run state.
    This is an error if T is not blocked.  (Use thread_yield() to
@@ -342,6 +368,7 @@ thread_foreach (thread_action_func *func, void *aux)
       func (t, aux);
     }
 }
+
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
@@ -482,6 +509,7 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->oldPriority = 0;
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
