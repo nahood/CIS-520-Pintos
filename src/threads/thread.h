@@ -138,6 +138,7 @@ int thread_get_priority (void);
 void thread_set_priority (int);
 
 void thread_donate_prio (struct thread *t, int priority);
+bool thread_prio_gt (struct list_elem *a, struct list_elem *b);
 void thread_release_donation (struct thread *t);
 
 int thread_get_nice (void);

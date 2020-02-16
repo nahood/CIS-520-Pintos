@@ -251,8 +251,6 @@ void thread_release_donation (struct thread *t)
     {
         t->priority = t->oldPriority;
         t->oldPriority = 0;
-
-        thread_yield ();
     }
 }
 
