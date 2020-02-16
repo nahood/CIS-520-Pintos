@@ -266,6 +266,10 @@ void recalculate_priority(struct thread *t)
        thread_donate_prio (t->waiting_on->holder, t);
     }
   }
+
+  //list_sort(&ready_list, thread_prio_gt, NULL);
+  //list_remove (&t->elem);
+  //list_insert_ordered (&ready_list, &t->elem, thread_prio_gt, NULL);
 }
 
 void thread_release_donations (struct lock *lock)
