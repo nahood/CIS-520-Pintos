@@ -15,15 +15,14 @@ CIS 520 - Programming Project #1
 >> If you have any preliminary comments on your submission, notes for
 >> the TA, or extra credit, please give them here.
 
-    OUTSIDE RESOURCES USED FOR INSPIRATION:
-        https://github.com/greasypenguins/CIS520-Group/
-        https://github.com/jhauserw3241/Pintos-520
-        https://github.com/Ma06RC/Pintos-Busy-Wait-
-
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than the Pintos documentation,
 >> course text, lecture notes, and course staff.
 
+    Inspiration Drawn From:
+        https://github.com/greasypenguins/CIS520-Group/
+        https://github.com/jhauserw3241/Pintos-520
+        https://github.com/Ma06RC/Pintos-Busy-Wait-
 
                  ALARM CLOCK
                  ===========
