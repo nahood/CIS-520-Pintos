@@ -88,10 +88,17 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int old_priority;
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+
+    struct list donor_list;             /* Donor list to store threads that have donated priority */
+
+    struct list_elem donor_elem;        /* List element for donor_list */
+
+    struct lock *waiting_on;            /* Pointer to lock that the thread is waiting on */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -100,6 +107,9 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    /* Ticks to sleep for */
+    int64_t ticks;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -132,6 +142,12 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+
+void thread_donate_prio (struct thread *to, struct thread *from);
+bool thread_prio_gt (struct list_elem *a, struct list_elem *b);
+bool thread_donor_prio_gt (struct list_elem *a, struct list_elem *b);
+void thread_release_donations (struct lock *lock);
+void recalculate_priority(struct thread *t);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
