@@ -38,13 +38,17 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  char *saveptr = file_name;
+  char *exec_name = strtok_r (saveptr, " ", &saveptr);
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy, thread_current ());
+  tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy, thread_current ());
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
 }
+
 
 /* A thread function that loads a user process and starts it
    running. */
@@ -196,7 +200,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, const char *file_name);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -223,7 +227,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (thread_current()->name);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -303,7 +307,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, file_name))
     goto done;
 
   /* Start address. */
@@ -428,7 +432,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, const char *file_name) 
 {
   uint8_t *kpage;
   bool success = false;
@@ -437,8 +441,71 @@ setup_stack (void **esp)
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        *esp = PHYS_BASE - 12;
+      if (success) {
+        char *token;
+        int argc = 0;
+        int length = strlen(file_name);
+
+        char file_name_reversed[length + 1];
+        char *saveptr;
+
+        *esp = PHYS_BASE;
+
+        int j = 0;
+        for (int i = length - 1; i >= 0; i--) {
+            file_name_reversed[j] = file_name[i];
+            j++;
+        }
+
+        file_name_reversed[length] = '\0';
+
+        saveptr = file_name;
+        while ((token = strtok_r(saveptr, " ", &saveptr))) {
+            argc++;
+        }
+
+        char *argv[argc];
+
+        saveptr = file_name_reversed;
+        int i = 0;
+        while ((token = strtok_r(saveptr, " ", &saveptr))) {
+            int token_len = strlen (token);
+            char token_reversed[token_len + 1];
+
+            int j =0;
+            for (int i = token_len - 1; i >= 0; i--) {
+                token_reversed[j] = token[i];
+                j++;
+            }
+
+            token_reversed[token_len] = '\0';
+            *esp -= token_len + 1;
+            argv[i] = *esp;
+            memcpy (*esp, token_reversed, token_len + 1);
+            i++;
+        }
+
+
+        int word_align = (length + 1) % 4;
+        *esp -= word_align;
+        memset (*esp, 0, word_align);
+
+        *esp -= 4;
+        memset (*esp, 0, 4);
+
+        for (int i = 0; i < argc; i++) {
+            *esp -= 4;
+            memcpy(*esp, &argv[i], 4);
+        }
+
+        *esp -= 4;
+        *(int *)*esp = (int)(*esp+4);
+
+        *esp -= 4;
+        memcpy (*esp, &argc, 4);
+        *esp -= sizeof(void*);
+        memset (*esp, 0, sizeof(void*));
+      }
       else
         palloc_free_page (kpage);
     }

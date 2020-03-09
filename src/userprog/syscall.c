@@ -14,15 +14,19 @@ syscall_init (void)
 
 static int write (int fd, const void *buffer, unsigned size) {
   printf ("%s", (char*) buffer);
-
   return size;
+}
+
+static void exit (int status) {
+  struct thread *t = thread_current ();
+  printf ("%s: exit(%d)\n", t->name, status);
+  thread_exit ();
 }
 
 static void
 syscall_handler (struct intr_frame *f) 
 {
   int call_num = *((int*) f->esp);
-
   switch(call_num) {
     case SYS_WRITE: {
       int fd = *((int*) f->esp + 1);
@@ -30,6 +34,11 @@ syscall_handler (struct intr_frame *f)
       unsigned size = *((unsigned*) f->esp + 3);
 
       f->eax = write(fd, buffer, size);
+      break;
+    }
+    case SYS_EXIT: {
+      int status = *((int*) f->esp + 1);
+      exit(status);
       break;
     }
   }
