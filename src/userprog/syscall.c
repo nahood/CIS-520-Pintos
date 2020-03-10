@@ -14,7 +14,10 @@ syscall_init (void)
 }
 
 static int write (int fd, const void *buffer, unsigned size) {
-  printf ("%s", (char*) buffer);
+  if (fd == 1) {
+    printf ("%s", (char*) buffer);
+  }
+
   return size;
 }
 
@@ -26,7 +29,7 @@ static void exit (int status) {
 
 static bool valid_address (void *addr) {
   // Check if the address is a virtual user address and within stack space
-  return is_user_vaddr(addr) && addr > 0x08084000;
+  return is_user_vaddr(addr) && (unsigned int) addr > (unsigned int) 0x08084000;
 }
 
 static void
