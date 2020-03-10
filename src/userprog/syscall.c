@@ -3,6 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -23,22 +24,33 @@ static void exit (int status) {
   thread_exit ();
 }
 
+static bool valid_address (void *addr) {
+  // Check if the address is a virtual user address and within stack space
+  return is_user_vaddr(addr) && addr > 0x08084000;
+}
+
 static void
 syscall_handler (struct intr_frame *f) 
 {
+  if (!valid_address (f->esp)) {
+    exit (-1);
+    return;
+  }
+
   int call_num = *((int*) f->esp);
+
   switch(call_num) {
     case SYS_WRITE: {
       int fd = *((int*) f->esp + 1);
       void *buffer = (void*) (*((int*) f->esp + 2));
       unsigned size = *((unsigned*) f->esp + 3);
 
-      f->eax = write(fd, buffer, size);
+      f->eax = write (fd, buffer, size);
       break;
     }
     case SYS_EXIT: {
       int status = *((int*) f->esp + 1);
-      exit(status);
+      exit (status);
       break;
     }
   }
