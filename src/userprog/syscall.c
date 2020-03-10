@@ -4,6 +4,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "pagedir.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -32,27 +33,35 @@ static bool valid_address (void *addr) {
   return is_user_vaddr(addr) && (unsigned int) addr > (unsigned int) 0x08084000;
 }
 
+static void *kernel_addr (void *addr) {
+  if (!valid_address (addr)) {
+    exit (-1);
+  }
+
+  void *paddr = pagedir_get_page (thread_current ()->pagedir, addr);
+  if (!paddr) {
+    exit (-1);
+  }
+
+  return paddr;
+}
+
 static void
 syscall_handler (struct intr_frame *f) 
 {
-  if (!valid_address (f->esp)) {
-    exit (-1);
-    return;
-  }
-
-  int call_num = *((int*) f->esp);
+  int call_num = *((int*)kernel_addr (f->esp));
 
   switch(call_num) {
     case SYS_WRITE: {
-      int fd = *((int*) f->esp + 1);
-      void *buffer = (void*) (*((int*) f->esp + 2));
-      unsigned size = *((unsigned*) f->esp + 3);
+      int fd = *((int*)kernel_addr ((int*) f->esp + 1));
+      void *buffer = (void*)(*((int*)kernel_addr ((int*) f->esp + 2)));
+      unsigned size = *((unsigned*)kernel_addr ((int*) f->esp + 3));
 
       f->eax = write (fd, buffer, size);
       break;
     }
     case SYS_EXIT: {
-      int status = *((int*) f->esp + 1);
+      int status = *((int*)kernel_addr ((int*) f->esp + 1));
       exit (status);
       break;
     }
