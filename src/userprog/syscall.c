@@ -5,6 +5,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "pagedir.h"
+#include "filesys/filesys.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -26,6 +27,15 @@ static void exit (int status) {
   struct thread *t = thread_current ();
   printf ("%s: exit(%d)\n", t->name, status);
   thread_exit ();
+}
+
+static bool create (const char *file, unsigned initial_size) {
+  if (file == NULL) {
+    exit (-1);
+    return false;
+  }
+
+  return filesys_create(file, initial_size);
 }
 
 static bool valid_address (void *addr) {
@@ -63,6 +73,13 @@ syscall_handler (struct intr_frame *f)
     case SYS_EXIT: {
       int status = *((int*)kernel_addr ((int*) f->esp + 1));
       exit (status);
+      break;
+    }
+    case SYS_CREATE: {
+      char *file = (char*)(*((int*)kernel_addr ((int*) f->esp + 1)));
+      unsigned size = *((unsigned*)kernel_addr ((int*) f->esp + 2));
+
+      f->eax = create (file, size);
       break;
     }
   }
