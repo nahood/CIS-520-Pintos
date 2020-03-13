@@ -10,6 +10,8 @@
 #include "threads/malloc.h"
 #include "filesys/file.h"
 #include "filesys/inode.h"
+#include <string.h>
+#include "devices/input.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -51,6 +53,10 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   list_init (&fd_list);
 }
+
+
+// --- SYSCALLS
+
 
 static int write (int fd, const void *buffer, unsigned size) {
   if (fd == 1) {
@@ -96,6 +102,34 @@ static int open (const char* file) {
   }
 }
 
+static int read (int fd, void *buffer, unsigned size) {
+  if (fd == 0) {
+    int offset = 0;
+
+    while (size > 0) {
+      int input = input_getc ();
+      memcpy (((int*) buffer + offset), &input, 4);
+      size--;
+    }
+
+    return size;
+  } else {
+    struct sys_file *sf = get_file (fd);
+
+    unsigned read_size = inode_read_at (sf->f->inode, buffer, size, 0);
+
+    if (read_size < size) {
+      return -1;
+    } else {
+      return size;
+    }
+  }
+}
+
+
+// --- MEMORY ACCESS
+
+
 static bool valid_address (void *addr) {
   // Check if the address is a virtual user address and within stack space
   return is_user_vaddr(addr) && (unsigned int) addr > (unsigned int) 0x08084000;
@@ -113,6 +147,10 @@ static void *kernel_addr (void *addr) {
 
   return paddr;
 }
+
+
+// --- SYSCALL HANDLER
+
 
 static void
 syscall_handler (struct intr_frame *f) 
@@ -150,6 +188,14 @@ syscall_handler (struct intr_frame *f)
       int fd = *((int*)kernel_addr ((int*) f->esp + 1));
 
       f->eax = filesize (fd);
+      break;
+    }
+    case SYS_READ: {
+      int fd = *((int*)kernel_addr ((int*) f->esp + 1));
+      void *buffer = (void*)(*((int*)kernel_addr ((int*) f->esp + 2)));
+      unsigned size = *((unsigned*)kernel_addr ((int*) f->esp + 3));
+
+      f->eax = read (fd, buffer, size);
       break;
     }
   }
