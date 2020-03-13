@@ -6,13 +6,50 @@
 #include "threads/vaddr.h"
 #include "pagedir.h"
 #include "filesys/filesys.h"
+#include "kernel/list.h"
+#include "threads/malloc.h"
+#include "filesys/file.h"
+#include "filesys/inode.h"
 
 static void syscall_handler (struct intr_frame *);
+
+// Initial file descriptor (0 and 1 are reserved)
+static int fd = 2;
+
+struct list fd_list;
+
+struct sys_file {
+  int fd;
+  struct file *f;
+  struct list_elem elem;
+};
+
+static struct sys_file* get_file (int fd) {
+  struct list_elem *e;
+  bool flag = false;
+  struct sys_file *sf = malloc (sizeof (struct sys_file));
+
+  for (e = list_begin (&fd_list); e != list_end (&fd_list); e = list_next (e)) {
+    if (!flag) {
+      free (sf);
+      flag = true;
+    }
+
+    sf = list_entry(e, struct sys_file, elem);
+
+    if (sf->fd == fd) {
+      break;
+    }
+  }
+
+  return sf;
+}
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  list_init (&fd_list);
 }
 
 static int write (int fd, const void *buffer, unsigned size) {
@@ -29,6 +66,12 @@ static void exit (int status) {
   thread_exit ();
 }
 
+static int filesize (int fd) {
+  struct sys_file *sf = get_file (fd);
+
+  return sf->f->inode->data.length;
+}
+
 static bool create (const char *file, unsigned initial_size) {
   if (file == NULL) {
     exit (-1);
@@ -36,6 +79,21 @@ static bool create (const char *file, unsigned initial_size) {
   }
 
   return filesys_create(file, initial_size);
+}
+
+static int open (const char* file) {
+  struct file *f;
+
+  if (file != NULL && (f = filesys_open (file)) != NULL) {
+    struct sys_file *sf = malloc (sizeof (struct sys_file));
+    sf->fd = fd;
+    sf->f = f;
+
+    list_push_front (&fd_list, &sf->elem);
+    return fd++;
+  } else {
+    return -1;
+  }
 }
 
 static bool valid_address (void *addr) {
@@ -80,6 +138,18 @@ syscall_handler (struct intr_frame *f)
       unsigned size = *((unsigned*)kernel_addr ((int*) f->esp + 2));
 
       f->eax = create (file, size);
+      break;
+    }
+    case SYS_OPEN: {
+      char *file = (char*)(*((int*)kernel_addr ((int*) f->esp + 1)));
+
+      f->eax = open (file);
+      break;
+    }
+    case SYS_FILESIZE: {
+      int fd = *((int*)kernel_addr ((int*) f->esp + 1));
+
+      f->eax = filesize (fd);
       break;
     }
   }
