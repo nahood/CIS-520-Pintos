@@ -28,6 +28,7 @@ struct sys_file {
 
 static struct sys_file* get_file (int fd) {
   struct list_elem *e;
+  bool found = false;
   bool flag = false;
   struct sys_file *sf = malloc (sizeof (struct sys_file));
 
@@ -40,11 +41,16 @@ static struct sys_file* get_file (int fd) {
     sf = list_entry(e, struct sys_file, elem);
 
     if (sf->fd == fd) {
+      found = true;
       break;
     }
   }
 
-  return sf;
+  if (found) {
+    return sf;
+  } else {
+    return NULL;
+  }
 }
 
 void
@@ -99,6 +105,18 @@ static int open (const char* file) {
     return fd++;
   } else {
     return -1;
+  }
+}
+
+static void close (int fd) {
+  if (fd < 2) {
+    return;
+  }
+
+  struct sys_file *sf = get_file (fd);
+
+  if (sf != NULL) {
+    list_remove (&sf->elem);
   }
 }
 
@@ -196,6 +214,12 @@ syscall_handler (struct intr_frame *f)
       unsigned size = *((unsigned*)kernel_addr ((int*) f->esp + 3));
 
       f->eax = read (fd, buffer, size);
+      break;
+    }
+    case SYS_CLOSE: {
+      int fd = *((int*)kernel_addr ((int*) f->esp + 1));
+
+      close (fd);
       break;
     }
   }
