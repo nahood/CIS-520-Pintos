@@ -187,6 +187,9 @@ thread_create (const char *name, int priority,
 
   t->parent = parent;
 
+  /* Initialize to 2 because 0 and 1 are reserved */
+  t->fd = 2;
+
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
