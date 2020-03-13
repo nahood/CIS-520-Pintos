@@ -134,6 +134,10 @@ static int read (int fd, void *buffer, unsigned size) {
   } else {
     struct sys_file *sf = get_file (fd);
 
+    if (sf == NULL) {
+      return -1;
+    }
+
     unsigned read_size = inode_read_at (sf->f->inode, buffer, size, 0);
 
     if (read_size < size) {
