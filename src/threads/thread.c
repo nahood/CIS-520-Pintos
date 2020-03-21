@@ -98,8 +98,6 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-
-  sema_init (&initial_thread->some_semaphore, 0);
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -109,6 +107,7 @@ thread_start (void)
 {
   /* Create the idle thread. */
   struct semaphore idle_started;
+  sema_init (&idle_started, 0);
   sema_init (&idle_started, 0);
   thread_create ("idle", PRI_MIN, idle, &idle_started, NULL);
 
@@ -186,6 +185,10 @@ thread_create (const char *name, int priority,
   tid = t->tid = allocate_tid ();
 
   t->parent = parent;
+
+  if (parent != NULL) {
+    list_push_front (&t->parent->children, &t->childelem);
+  }
 
   /* Initialize to 2 because 0 and 1 are reserved */
   t->fd = 2;
@@ -297,7 +300,6 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
-  sema_up(&thread_current()->parent->some_semaphore);
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
@@ -471,6 +473,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+
+  t->exit_code = -1;
+
+  sema_init (&t->exited, 0);
+  sema_init (&t->loaded, 0);
+  list_init (&t->children);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

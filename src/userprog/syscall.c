@@ -12,6 +12,8 @@
 #include "filesys/inode.h"
 #include <string.h>
 #include "devices/input.h"
+#include "process.h"
+
 
 static void syscall_handler (struct intr_frame *);
 
@@ -74,6 +76,7 @@ static int write (int fd, const void *buffer, unsigned size) {
 
 static void exit (int status) {
   struct thread *t = thread_current ();
+  t->exit_code = status;
   printf ("%s: exit(%d)\n", t->name, status);
   thread_exit ();
 }
@@ -146,6 +149,20 @@ static int read (int fd, void *buffer, unsigned size) {
       return size;
     }
   }
+}
+
+static tid_t exec (const char* cmd_line) {
+  tid_t result = process_execute (cmd_line);
+
+  if (result != TID_ERROR) {
+    return result;
+  } else {
+    return -1;
+  }
+}
+
+static int wait (tid_t tid) {
+  return process_wait (tid);
 }
 
 
@@ -224,6 +241,18 @@ syscall_handler (struct intr_frame *f)
       int fd = *((int*)kernel_addr ((int*) f->esp + 1));
 
       close (fd);
+      break;
+    }
+    case SYS_EXEC: {
+      char *cmd_line = (char*)(*((int*)kernel_addr ((int*) f->esp + 1)));
+
+      f->eax = exec (cmd_line);
+      break;
+    }
+    case SYS_WAIT: {
+      int tid = *((int*)kernel_addr ((int*) f->esp + 1));
+
+      f->eax = wait (tid);
       break;
     }
   }
