@@ -39,11 +39,15 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  char *saveptr = file_name;
-  char *exec_name = strtok_r (saveptr, " ", &saveptr);
+  char *fn_copy2;
+  fn_copy2 = palloc_get_page (0);
+  strlcpy (fn_copy2, file_name, PGSIZE);
+
+  char *saveptr;
+  char *exec_name = strtok_r (fn_copy, " ", &saveptr);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy, thread_current ());
+  tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy2, thread_current ());
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
