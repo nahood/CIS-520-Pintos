@@ -14,6 +14,7 @@
 #include "devices/input.h"
 #include "process.h"
 
+
 static void syscall_handler (struct intr_frame *);
 
 // Initial file descriptor (0 and 1 are reserved)
