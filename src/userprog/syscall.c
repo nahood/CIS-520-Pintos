@@ -75,6 +75,7 @@ static int write (int fd, const void *buffer, unsigned size) {
 
 static void exit (int status) {
   struct thread *t = thread_current ();
+  t->exit_code = status;
   printf ("%s: exit(%d)\n", t->name, status);
   thread_exit ();
 }
@@ -159,6 +160,10 @@ static tid_t exec (const char* cmd_line) {
   }
 }
 
+static int wait (tid_t tid) {
+  return process_wait (tid);
+}
+
 
 // --- MEMORY ACCESS
 
@@ -241,6 +246,12 @@ syscall_handler (struct intr_frame *f)
       char *cmd_line = (char*)(*((int*)kernel_addr ((int*) f->esp + 1)));
 
       f->eax = exec (cmd_line);
+      break;
+    }
+    case SYS_WAIT: {
+      int tid = *((int*)kernel_addr ((int*) f->esp + 1));
+
+      f->eax = wait (tid);
       break;
     }
   }

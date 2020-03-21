@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -68,8 +69,12 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (success) {
+    struct thread *t = thread_current ();
+    sema_up (&t->loaded);
+  } else {
     thread_exit ();
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -91,9 +96,22 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  sema_down(&thread_current()->some_semaphore);
+  struct thread *t = thread_current ();
+  struct list_elem *e;
+
+  for (e = list_begin (&t->children); e != list_end (&t->children);
+       e = list_next (e)) {
+    struct thread *child_thread = list_entry (e, struct thread, childelem);
+
+    if (child_tid == child_thread->tid) {
+      sema_down (&child_thread->exited);
+      return child_thread->exit_code;
+    }
+  }
+
+  return -1;
 }
 
 /* Free the current process's resources. */
@@ -118,6 +136,8 @@ process_exit (void)
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
+
+      sema_up (&cur->exited);
     }
 }
 
