@@ -12,6 +12,7 @@
 #include "filesys/inode.h"
 #include <string.h>
 #include "devices/input.h"
+#include "process.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -148,6 +149,16 @@ static int read (int fd, void *buffer, unsigned size) {
   }
 }
 
+static tid_t exec (const char* cmd_line) {
+  tid_t result = process_execute (cmd_line);
+
+  if (result != TID_ERROR) {
+    return result;
+  } else {
+    return -1;
+  }
+}
+
 
 // --- MEMORY ACCESS
 
@@ -224,6 +235,12 @@ syscall_handler (struct intr_frame *f)
       int fd = *((int*)kernel_addr ((int*) f->esp + 1));
 
       close (fd);
+      break;
+    }
+    case SYS_EXEC: {
+      char *cmd_line = (char*)(*((int*)kernel_addr ((int*) f->esp + 1)));
+
+      f->eax = exec (cmd_line);
       break;
     }
   }
