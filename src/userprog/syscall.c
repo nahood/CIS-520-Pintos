@@ -151,7 +151,7 @@ static int read (int fd, void *buffer, unsigned size) {
       return -1;
     }
 
-    unsigned read_size = inode_read_at (sf->f->inode, buffer, size, 0);
+    unsigned read_size = file_read (sf->f, buffer, size);
 
     if (read_size < size) {
       return -1;
