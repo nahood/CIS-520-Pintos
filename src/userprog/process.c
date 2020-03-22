@@ -121,7 +121,7 @@ process_wait (tid_t child_tid)
 
     if (child_tid == child_thread->tid) {
       sema_down (&child_thread->exited);
-      return child_thread->exit_code;
+      return t->exit_code;
     }
   }
 
@@ -134,6 +134,12 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  if (cur->parent != NULL) {
+    cur->parent->exit_code = cur->exit_code;
+  }
+
+  sema_up (&cur->exited);
 
   struct list_elem *e;
 
@@ -161,8 +167,6 @@ process_exit (void)
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
-
-      sema_up (&cur->exited);
     }
 }
 
