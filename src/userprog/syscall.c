@@ -17,18 +17,16 @@
 
 static void syscall_handler (struct intr_frame *);
 
-// Initial file descriptor (0 and 1 are reserved)
-static int fd = 2;
-
 struct list fd_list;
 
 struct sys_file {
   int fd;
   struct file *f;
   struct list_elem elem;
+  struct thread *owner;
 };
 
-static struct sys_file* get_file (int fd) {
+static struct sys_file* get_file (int fd, struct thread *t) {
   struct list_elem *e;
   bool found = false;
   bool flag = false;
@@ -42,7 +40,7 @@ static struct sys_file* get_file (int fd) {
 
     sf = list_entry(e, struct sys_file, elem);
 
-    if (sf->fd == fd) {
+    if (sf->fd == fd && t == sf->owner) {
       found = true;
       break;
     }
@@ -82,7 +80,7 @@ static void exit (int status) {
 }
 
 static int filesize (int fd) {
-  struct sys_file *sf = get_file (fd);
+  struct sys_file *sf = get_file (fd, thread_current ());
 
   return sf->f->inode->data.length;
 }
@@ -98,14 +96,16 @@ static bool create (const char *file, unsigned initial_size) {
 
 static int open (const char* file) {
   struct file *f;
+  struct thread *t = thread_current ();
 
   if (file != NULL && (f = filesys_open (file)) != NULL) {
     struct sys_file *sf = malloc (sizeof (struct sys_file));
-    sf->fd = fd;
+    sf->fd = t->fd;
     sf->f = f;
+    sf->owner = t;
 
     list_push_front (&fd_list, &sf->elem);
-    return fd++;
+    return t->fd++;
   } else {
     return -1;
   }
@@ -116,9 +116,9 @@ static void close (int fd) {
     return;
   }
 
-  struct sys_file *sf = get_file (fd);
+  struct sys_file *sf = get_file (fd, thread_current ());
 
-  if (sf != NULL) {
+  if (sf != NULL && sf->owner == thread_current ()) {
     list_remove (&sf->elem);
   }
 }
@@ -135,7 +135,7 @@ static int read (int fd, void *buffer, unsigned size) {
 
     return size;
   } else {
-    struct sys_file *sf = get_file (fd);
+    struct sys_file *sf = get_file (fd, thread_current ());
 
     if (sf == NULL) {
       return -1;
