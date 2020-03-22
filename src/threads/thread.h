@@ -98,6 +98,8 @@ struct thread
     struct list children;               /* List for child processes (threads). */
     int exit_code;                      /* Exit code for process */
 
+    bool success;
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 

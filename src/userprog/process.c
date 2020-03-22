@@ -29,6 +29,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
+  struct thread *t = thread_current ();
   char *fn_copy;
   tid_t tid;
 
@@ -47,7 +48,7 @@ process_execute (const char *file_name)
   char *exec_name = strtok_r (fn_copy, " ", &saveptr);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy2, thread_current ());
+  tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy2, t);
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
@@ -73,10 +74,12 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (success) {
-    struct thread *t = thread_current ();
-    sema_up (&t->loaded);
-  } else {
+
+  struct thread *t = thread_current ();
+  t->success = success;
+  sema_up (&t->loaded);
+
+  if (!success) {
     thread_exit ();
   }
 
@@ -124,6 +127,17 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  struct list_elem *e;
+
+  for (e = list_begin (&cur->parent->children); e != list_end (&cur->parent->children);
+       e = list_next (e)) {
+    struct thread *child_thread = list_entry (e, struct thread, childelem);
+
+    if (cur->tid == child_thread->tid) {
+      list_remove (e);
+    }
+  }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
