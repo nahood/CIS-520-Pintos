@@ -13,21 +13,27 @@
 #include <string.h>
 #include "devices/input.h"
 #include "process.h"
+#include "devices/shutdown.h"
 
 
 static void syscall_handler (struct intr_frame *);
 
+// List of sys_file structs
+// Used for keeping track of open file descriptors and the associated file
 struct list fd_list;
 
+// File lock for 
 struct lock file_lock;
 
+// Struct that associates an open file with a fd
 struct sys_file {
-  int fd;
-  struct file *f;
-  struct list_elem elem;
-  struct thread *owner;
+  int fd;                   // File descriptor
+  struct file *f;           // Pointer to file
+  struct list_elem elem;    // List element
+  struct thread *owner;     // Thread that opened the file
 };
 
+// Returns a thread's file from fd
 static struct sys_file* get_file (int fd, struct thread *t) {
   struct list_elem *e;
   bool found = false;
@@ -64,6 +70,7 @@ syscall_init (void)
 static int write (int fd, const void *buffer, unsigned size_) {
   unsigned size = 0;
 
+  // fd 1 for console output
   if (fd == 1) {
     printf ("%s", (char*) buffer);
     size = size_;
@@ -146,6 +153,10 @@ static void close (int fd) {
   }
 }
 
+static void halt (void) {
+  shutdown_power_off();
+}
+
 static int read (int fd, void *buffer, unsigned size) {
   if (fd == 0) {
     int offset = 0;
@@ -194,11 +205,12 @@ static int wait (tid_t tid) {
 // --- MEMORY ACCESS
 
 
+// Check if the address is a virtual user address and within stack space
 static bool valid_address (void *addr) {
-  // Check if the address is a virtual user address and within stack space
   return is_user_vaddr(addr) && (unsigned int) addr > (unsigned int) 0x08048000;
 }
 
+// Validates a syscall argument address
 static void *kernel_addr (void *addr) {
   if (!valid_address (addr)) {
     exit (-1);
@@ -220,6 +232,25 @@ static bool remove (const char* file) {
   return result;
 }
 
+static void seek (int fd, unsigned position) {
+  struct sys_file *sf = get_file (fd, thread_current ());
+
+  lock_acquire (&file_lock);
+  if ((off_t) position >= 0) {
+    file_seek (sf->f, position);
+  }
+  lock_release (&file_lock);
+}
+
+static unsigned tell (int fd) {
+  struct sys_file *sf = get_file (fd, thread_current ());
+
+  lock_acquire (&file_lock);
+  unsigned result = file_tell (sf->f);
+  lock_release (&file_lock);
+
+  return result;
+}
 
 // --- SYSCALL HANDLER
 
@@ -292,6 +323,23 @@ syscall_handler (struct intr_frame *f)
       char *file = (char*)(*((int*)kernel_addr ((int*) f->esp + 1)));
 
       f->eax = remove (file);
+      break;
+    }
+    case SYS_HALT: {
+      halt ();
+      break;
+    }
+    case SYS_TELL: {
+      int fd = *((int*)kernel_addr ((int*) f->esp + 1));
+
+      f->eax = tell (fd);
+      break;
+    }
+    case SYS_SEEK: {
+      int fd = *((int*)kernel_addr ((int*) f->esp + 1));
+      unsigned position = *((unsigned*)kernel_addr ((int*) f->esp + 2));
+
+      seek (fd, position);
       break;
     }
   }
