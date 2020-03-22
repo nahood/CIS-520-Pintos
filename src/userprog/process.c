@@ -141,8 +141,6 @@ process_exit (void)
     cur->parent->exit_code = cur->exit_code;
   }
 
-  sema_up (&cur->exited);
-
   struct list_elem *e;
 
   for (e = list_begin (&cur->parent->children); e != list_end (&cur->parent->children);
@@ -153,6 +151,8 @@ process_exit (void)
       list_remove (e);
     }
   }
+
+  sema_up (&cur->exited);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */

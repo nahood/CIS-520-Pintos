@@ -19,6 +19,8 @@ static void syscall_handler (struct intr_frame *);
 
 struct list fd_list;
 
+struct lock file_lock;
+
 struct sys_file {
   int fd;
   struct file *f;
@@ -29,15 +31,9 @@ struct sys_file {
 static struct sys_file* get_file (int fd, struct thread *t) {
   struct list_elem *e;
   bool found = false;
-  bool flag = false;
-  struct sys_file *sf = malloc (sizeof (struct sys_file));
+  struct sys_file *sf;
 
   for (e = list_begin (&fd_list); e != list_end (&fd_list); e = list_next (e)) {
-    if (!flag) {
-      free (sf);
-      flag = true;
-    }
-
     sf = list_entry(e, struct sys_file, elem);
 
     if (sf->fd == fd && t == sf->owner) {
@@ -58,6 +54,7 @@ syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   list_init (&fd_list);
+  lock_init (&file_lock);
 }
 
 
@@ -74,7 +71,9 @@ static int write (int fd, const void *buffer, unsigned size_) {
     struct sys_file *sf = get_file (fd, thread_current ());
 
     if (sf != NULL) {
+      lock_acquire (&file_lock);
       size = file_write (sf->f, buffer, size_);
+      lock_release (&file_lock);
     }
   }
 
@@ -100,14 +99,26 @@ static bool create (const char *file, unsigned initial_size) {
     return false;
   }
 
-  return filesys_create(file, initial_size);
+  lock_acquire (&file_lock);
+  bool result = filesys_create(file, initial_size);
+  lock_release (&file_lock);
+
+  return result;
 }
 
 static int open (const char* file) {
   struct file *f;
   struct thread *t = thread_current ();
 
-  if (file != NULL && (f = filesys_open (file)) != NULL) {
+  if (file == NULL) {
+    return -1;
+  }
+
+  lock_acquire (&file_lock);
+  f = filesys_open (file);
+  lock_release (&file_lock);
+
+  if (f != NULL) {
     struct sys_file *sf = malloc (sizeof (struct sys_file));
     sf->fd = t->fd;
     sf->f = f;
@@ -128,8 +139,10 @@ static void close (int fd) {
   struct sys_file *sf = get_file (fd, thread_current ());
 
   if (sf != NULL && sf->owner == thread_current ()) {
+    lock_acquire (&file_lock);
     file_close (sf->f);
     list_remove (&sf->elem);
+    lock_release (&file_lock);
   }
 }
 
@@ -151,7 +164,9 @@ static int read (int fd, void *buffer, unsigned size) {
       return -1;
     }
 
+    lock_acquire (&file_lock);
     unsigned read_size = file_read (sf->f, buffer, size);
+    lock_release (&file_lock);
 
     if (read_size < size) {
       return -1;
@@ -195,6 +210,14 @@ static void *kernel_addr (void *addr) {
   }
 
   return paddr;
+}
+
+static bool remove (const char* file) {
+  lock_acquire (&file_lock);
+  bool result = filesys_remove (file);
+  lock_release (&file_lock);
+
+  return result;
 }
 
 
@@ -263,6 +286,12 @@ syscall_handler (struct intr_frame *f)
       int tid = *((int*)kernel_addr ((int*) f->esp + 1));
 
       f->eax = wait (tid);
+      break;
+    }
+    case SYS_REMOVE: {
+      char *file = (char*)(*((int*)kernel_addr ((int*) f->esp + 1)));
+
+      f->eax = remove (file);
       break;
     }
   }
