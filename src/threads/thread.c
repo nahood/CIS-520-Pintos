@@ -187,7 +187,7 @@ thread_create (const char *name, int priority,
   t->parent = parent;
 
   if (parent != NULL) {
-    list_push_front (&t->parent->children, &t->childelem);
+    list_push_back (&t->parent->children, &t->childelem);
   }
 
   /* Initialize to 2 because 0 and 1 are reserved */
@@ -475,6 +475,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   t->exit_code = -1;
+  t->success = false;
 
   sema_init (&t->exited, 0);
   sema_init (&t->loaded, 0);
