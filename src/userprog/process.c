@@ -54,6 +54,8 @@ process_execute (const char *file_name)
     return TID_ERROR;
   }
 
+  file_close (file);
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy2, t);
 
@@ -295,6 +297,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: error loading executable\n", file_name);
       goto done; 
     }
+
+  /* Deny writes for executables */
+  file_deny_write (file);
 
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;

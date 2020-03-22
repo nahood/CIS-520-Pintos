@@ -64,9 +64,18 @@ syscall_init (void)
 // --- SYSCALLS
 
 
-static int write (int fd, const void *buffer, unsigned size) {
+static int write (int fd, const void *buffer, unsigned size_) {
+  unsigned size = 0;
+
   if (fd == 1) {
     printf ("%s", (char*) buffer);
+    size = size_;
+  } else {
+    struct sys_file *sf = get_file (fd, thread_current ());
+
+    if (sf != NULL) {
+      size = file_write (sf->f, buffer, size_);
+    }
   }
 
   return size;
@@ -119,6 +128,7 @@ static void close (int fd) {
   struct sys_file *sf = get_file (fd, thread_current ());
 
   if (sf != NULL && sf->owner == thread_current ()) {
+    file_close (sf->f);
     list_remove (&sf->elem);
   }
 }
@@ -171,7 +181,7 @@ static int wait (tid_t tid) {
 
 static bool valid_address (void *addr) {
   // Check if the address is a virtual user address and within stack space
-  return is_user_vaddr(addr) && (unsigned int) addr > (unsigned int) 0x08084000;
+  return is_user_vaddr(addr) && (unsigned int) addr > (unsigned int) 0x08048000;
 }
 
 static void *kernel_addr (void *addr) {
