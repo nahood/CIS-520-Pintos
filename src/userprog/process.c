@@ -40,19 +40,23 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  // Make another copy that is passed to aux because it wil be tokenized
   char *fn_copy2;
   fn_copy2 = palloc_get_page (0);
   strlcpy (fn_copy2, file_name, PGSIZE);
 
+  // Tokenize to just get the executable name
   char *saveptr;
   char *exec_name = strtok_r (fn_copy, " ", &saveptr);
 
+  // Check if the file can actually be loaded
   struct file *file = NULL;
   file = filesys_open (exec_name);
 
   if (file == NULL) {
     return TID_ERROR;
   }
+  file_close (file);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy2, t);
@@ -81,10 +85,6 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-
-  struct thread *t = thread_current ();
-  t->success = success;
-  sema_up (&t->loaded);
 
   if (!success) {
     thread_exit ();
@@ -115,12 +115,15 @@ process_wait (tid_t child_tid)
   struct thread *t = thread_current ();
   struct list_elem *e;
 
+  // Iterate through the thread's children list and wait for the selected thread
   for (e = list_begin (&t->children); e != list_end (&t->children);
        e = list_next (e)) {
     struct thread *child_thread = list_entry (e, struct thread, childelem);
 
     if (child_tid == child_thread->tid) {
       sema_down (&child_thread->exited);
+      // The child thread modifies its parents exit code so we return the 
+      // parent's exit code
       return t->exit_code;
     }
   }
@@ -135,14 +138,14 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  // Modify the parent's exit code when we exit
   if (cur->parent != NULL) {
     cur->parent->exit_code = cur->exit_code;
   }
 
-  sema_up (&cur->exited);
+  // Remove ourselves from our parent's children list
 
   struct list_elem *e;
-
   for (e = list_begin (&cur->parent->children); e != list_end (&cur->parent->children);
        e = list_next (e)) {
     struct thread *child_thread = list_entry (e, struct thread, childelem);
@@ -151,6 +154,9 @@ process_exit (void)
       list_remove (e);
     }
   }
+
+// Notify the parent thread that we have exited
+  sema_up (&cur->exited);
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -295,6 +301,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: error loading executable\n", file_name);
       goto done; 
     }
+
+  /* Deny writes for executables */
+  file_deny_write (file);
 
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
@@ -500,6 +509,7 @@ setup_stack (void **esp, const char *file_name)
 
         *esp = PHYS_BASE;
 
+        // Reverse the filename string to push them in reverse order
         int j = 0;
         for (int i = length - 1; i >= 0; i--) {
             file_name_reversed[j] = file_name[i];
@@ -508,13 +518,16 @@ setup_stack (void **esp, const char *file_name)
 
         file_name_reversed[length] = '\0';
 
+        // Count our total arguments
         saveptr = file_name;
         while ((token = strtok_r(saveptr, " ", &saveptr))) {
             argc++;
         }
 
+        // Create an arry with the number of artugments
         char *argv[argc];
 
+        // Push the arguments, reversing them before doing so
         saveptr = file_name_reversed;
         int i = 0;
         while ((token = strtok_r(saveptr, " ", &saveptr))) {
@@ -534,7 +547,7 @@ setup_stack (void **esp, const char *file_name)
             i++;
         }
 
-
+        // Other stack stuff according to spec
         int word_align = (length + 1) % 4;
         *esp -= word_align;
         memset (*esp, 0, word_align);
