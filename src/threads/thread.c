@@ -184,8 +184,10 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+  // Initialize parent
   t->parent = parent;
 
+  // Add ourselves to our parent's children list if we have a parent
   if (parent != NULL) {
     list_push_back (&t->parent->children, &t->childelem);
   }
@@ -475,10 +477,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   t->exit_code = -1;
-  t->success = false;
 
   sema_init (&t->exited, 0);
-  sema_init (&t->loaded, 0);
   list_init (&t->children);
 
   old_level = intr_disable ();
