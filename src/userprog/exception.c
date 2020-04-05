@@ -4,6 +4,7 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "vm/page.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -81,9 +82,6 @@ kill (struct intr_frame *f)
      
   /* The interrupt frame's code segment value tells us where the
      exception originated. */
-
-  thread_current ()->exit_code = -1;
-
   switch (f->cs)
     {
     case SEL_UCSEG:
@@ -151,10 +149,19 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  struct thread *t = thread_current ();
-  printf ("%s: exit(%d)\n", t->name, -1);
-  thread_exit ();
+  /* Allow the pager to try to handle it. */
+  if (user && not_present)
+    {
+      if (!page_in (fault_addr))
+        thread_exit ();
+      return;
+    }
 
+  printf ("Page fault at %p: %s error %s page in %s context.\n",
+          fault_addr,
+          not_present ? "not present" : "rights violation",
+          write ? "writing" : "reading",
+          user ? "user" : "kernel");
   kill (f);
 }
 
