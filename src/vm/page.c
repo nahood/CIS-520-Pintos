@@ -54,6 +54,19 @@ page_for_addr (const void *address)
 
 /* add code */
 
+      /* -We need to determine if the program is attempting to access the stack.
+         -First, we ensure that the address is not beyond the bounds of the stack space (1 MB in this
+          case).
+         -As long as the user is attempting to acsess an address within 32 bytes (determined by the space
+          needed for a PUSHA command) of the stack pointers, we assume that the address is valid. In that
+          case, we should allocate one more stack page accordingly.
+      */
+      if ((p.addr > PHYS_BASE - STACK_MAX) && ((void *)thread_current()->user_esp - 32 < address))
+      {
+        return page_allocate (p.addr, false);
+      }
+
+
     }
   return NULL;
 }
@@ -147,13 +160,56 @@ page_out (struct page *p)
 
 /* add code here */
 
+  pagedir_clear_page(p->thread->pagedir, (void *) p->addr);
+
   /* Has the frame been modified? */
 
 /* add code here */
 
+/* If the frame has been modified, set 'dirty' to true. */
+  dirty = pagedir_is_dirty (p->thread->pagedir, (const void *) p->addr);
+
+  /* If the frame is not dirty (and file != NULL), we have sucsessfully evicted the page. */
+  if(!dirty)
+  {
+    ok = true;
+  }
+
+  /* If the file is null, we definitely don't want to write the frame to disk. We must swap out the
+     frame and save whether or not the swap was successful. This could overwrite the previous value of
+     'ok'. */
+  if (p->file == NULL)
+  {
+    ok = swap_out(p);
+  }
+  /* Otherwise, a file exists for this page. If file contents have been modified, then they must be
+     be written back to the file system on disk, or swapped out. This is determined by the private
+     variable associated with the page. */
+  else
+  {
+    if (dirty)
+    {
+      if(p->private)
+      {
+        ok = swap_out(p);
+      }
+      else
+      {
+        ok = file_write_at(p->file, (const void *) p->frame->base, p->file_bytes, p->file_offset);
+      }
+    }
+  }
+
   /* Write frame contents to disk if necessary. */
 
 /* add code here */
+
+  /* Nullify the frame held by the page. */
+  if(ok)
+  {
+    p->frame = NULL;
+  }
+
 
   return ok;
 }
