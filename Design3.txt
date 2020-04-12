@@ -1,5 +1,5 @@
 		           +---------------------------+
-       	       |         CIS 520           |
+           	       |         CIS 520           |
 		           | PROJECT 3: Virtual Memory |
 		           |     DESIGN DOCUMENT       |
 		           +---------------------------+
