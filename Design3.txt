@@ -21,6 +21,8 @@ Nathanael Hood
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
 
+https://github.com/ChristianJHughes/pintos-project3
+
 			PAGE TABLE MANAGEMENT
 			=====================
 
@@ -29,10 +31,16 @@ Nathanael Hood
 >> A1: In a few paragraphs, describe the existing code for locating the
 >> frame, if any, that contains the data of a given page.
 
+Pages have an internal frame pointer that points to the frame they are in. Frames have a page pointer that points to that same page. The frame also has a pointer to the base address for the data.
+
+Frames are allocated to pages with the frame_alloc_and_lock() function. This function will also find free frames in memory and will evict if needed. This function is useful and used for many operations regarding frames and pages.
+
 ---- SYNCHRONIZATION ----
 
 >> A2: When two user processes both need a new frame at the same time,
 >> how are races avoided?
+
+The process tries to acquire the scan_lock whenever it tries to read and iterate through the list of frames. A process can only look through the frames for a new one when holding this scan_lock. The process then looks through each frame to find one that’s internal frame lock is not held/locked, then acquires it, frees scan_lock, and returns..
 
 		       PAGING TO AND FROM DISK
 		       =======================
@@ -42,9 +50,15 @@ Nathanael Hood
 >> B1: When a frame is required but none is free, some frame must be
 >> evicted.  Describe the algorithm used to choose a frame to evict.
 
+The specification of what algorithm we use is a version of LRU -- least recently used. This is where our goal is to have the least recently used frame evicted, since it most likely will not be used again as soon as the other more recently used frames.
+
+The algorithm itself iterates through frames until it finds a frame that it can acquire. If there is no associated page for the frame it acquires the lock, otherwise it needs to find a frame that has not recently been accessed, evicting the one that was least recently used. If some error occurs then no frame is evicted.
+
 >> B2: Explain your heuristic for deciding whether a page fault for an
 >> invalid virtual address should cause the stack to be extended into
 >> the page that faulted.
+
+If the address within the stack space (smaller than PHYS_BASE), it tries to get the existing page and expands the stack if the fault address is within 32 bytes of the user_esp.
 
 			 MEMORY MAPPED FILES
 			 ===================
@@ -55,14 +69,22 @@ Nathanael Hood
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+N/A.
+
 ---- ALGORITHMS ----
 
 >> C2: Describe how memory mapped files integrate into your virtual
 >> memory subsystem.  Explain how the page fault and eviction
 >> processes differ between swap pages and other pages.
 
+First off, memory mapped files are located as a struct ‘mapping’ in syscall.c. This mapping struct has a mapping id, and a reference to the file that is mapped. Threads have a list of mappings which can be used to check which of the files are present in memory. Pages also contain memory mapped file information as well such as the file.
+
+For page faulting and swapping, it differs for memory mapped files in some ways. For instance, memory mapped files avoid the swap partition entirely. If evicted, they will be written back to the file if modified but that’s it. For things such as non-file files move to the swap partition when evicted.
+
 >> C3: Explain how you determine whether a new file mapping overlaps
 >> any existing segment.
+
+The thread has a hash table of mapped tables. The code tries to insert the newly mapped page which fails if it already exists. We make sure to remove mappings from the hash table when unmapping. Hash tables are nice.
 
 ---- RATIONALE ----
 
@@ -72,6 +94,8 @@ Nathanael Hood
 >> that much of their implementation can be shared.  Explain why your
 >> implementation either does or does not share much of the code for
 >> the two situations.
+
+The implementation shares much of the code because page_out() will eventually be called. Where it differs is determining if the page should be written to disk. Private pages are swapped to the swap partition.
 
 			   SURVEY QUESTIONS
 			   ================
@@ -96,12 +120,13 @@ Not particularly, the lectures did a great job.
 >> future quarters to help them solve the problems?  Conversely, did you
 >> find any of our guidance to be misleading?
 
-The design document isn't what you need to do, only 4.3.4 onwards. Only need to put code where it says "add code here," unlike previous asignments.
+The design document isn't what you need to do, only 4.3.4 onwards. Only need to put code where it says "add code here," unlike previous assignments.
 We spent a solid day confused as to what we were supposed to be doing until we realized the design doc was incorrect.
 
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining projects?
 
-The design document isn't what you need to do, only 4.3.4 onwards. Only need to put code where it says "add code here," unlike previous asignments.
+The design document isn't what you need to do, only 4.3.4 onwards. Only need to put code where it says "add code here," unlike previous assignments.
 
 >> Any other comments?
+
