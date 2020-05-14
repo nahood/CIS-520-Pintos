@@ -1,0 +1,200 @@
+
+
+------------------------
+Number of Lines: 10000
+------------------------
+
+Number of Cores: 1
+Time to read data: 114.780000
+Time to compute sums: 10.836000
+Time to compute diffs: 0.042000
+Time to print results: 11.704000
+Total running time: 137.362000
+
+Number of Cores: 2
+Time to read data: 105.528000
+Time to compute sums: 10.828000
+Time to compute diffs: 0.042000
+Time to print results: 11.724000
+Total running time: 128.122000
+
+Number of Cores: 4
+Time to read data: 135.356000
+Time to compute sums: 9.975000
+Time to compute diffs: 0.042000
+Time to print results: 12.616000
+Total running time: 157.989000
+
+Number of Cores: 8
+Time to read data: 134.170000
+Time to compute sums: 9.446000
+Time to compute diffs: 0.041000
+Time to print results: 12.712000
+Total running time: 156.369000
+
+Number of Cores: 16
+Time to read data: 132.434000
+Time to compute sums: 10.188000
+Time to compute diffs: 0.038000
+Time to print results: 13.460000
+Total running time: 156.120000
+
+
+------------------------
+Number of Lines: 100000
+------------------------
+
+Number of Cores: 1
+Time to read data: 269.410000
+Time to compute sums: 109.411000
+Time to compute diffs: 0.390000
+Time to print results: 124.830000
+Total running time: 504.041000
+
+Number of Cores: 2
+Time to read data: 259.128000
+Time to compute sums: 96.263000
+Time to compute diffs: 0.398000
+Time to print results: 112.602000
+Total running time: 468.391000
+
+Number of Cores: 4
+Time to read data: 293.591000
+Time to compute sums: 110.452000
+Time to compute diffs: 0.406000
+Time to print results: 110.676000
+Total running time: 515.125000
+
+Number of Cores: 8
+Time to read data: 293.859000
+Time to compute sums: 105.662000
+Time to compute diffs: 0.407000
+Time to print results: 117.782000
+Total running time: 517.710000
+
+Number of Cores: 16
+Time to read data: 242.508000
+Time to compute sums: 100.475000
+Time to compute diffs: 0.436000
+Time to print results: 121.205000
+Total running time: 464.624000
+
+
+------------------------
+Number of Lines: 500000
+------------------------
+
+Number of Cores: 1
+Time to read data: 880.657000
+Time to compute sums: 554.407000
+Time to compute diffs: 2.186000
+Time to print results: 740.398000
+Total running time: 2177.648000
+
+Number of Cores: 2
+Time to read data: 856.837000
+Time to compute sums: 552.783000
+Time to compute diffs: 2.194000
+Time to print results: 694.584000
+Total running time: 2106.398000
+
+Number of Cores: 4
+Time to read data: 881.434000
+Time to compute sums: 520.543000
+Time to compute diffs: 2.093000
+Time to print results: 691.071000
+Total running time: 2095.141000
+
+Number of Cores: 8
+Time to read data: 870.369000
+Time to compute sums: 488.054000
+Time to compute diffs: 2.020000
+Time to print results: 678.725000
+Total running time: 2039.168000
+
+Number of Cores: 16
+Time to read data: 981.729000
+Time to compute sums: 524.373000
+Time to compute diffs: 2.348000
+Time to print results: 640.423000
+Total running time: 2148.873000
+
+
+------------------------
+Number of Lines: 750000
+------------------------
+
+Number of Cores: 1
+Time to read data: 1287.788000
+Time to compute sums: 986.345000
+Time to compute diffs: 3.240000
+Time to print results: 966.689000
+Total running time: 3244.062000
+
+Number of Cores: 2
+Time to read data: 1238.041000
+Time to compute sums: 957.782000
+Time to compute diffs: 3.697000
+Time to print results: 906.112000
+Total running time: 3105.632000
+
+Number of Cores: 4
+Time to read data: 1186.980000
+Time to compute sums: 918.879000
+Time to compute diffs: 3.389000
+Time to print results: 841.919000
+Total running time: 2951.167000
+
+Number of Cores: 8
+Time to read data: 1206.462000
+Time to compute sums: 876.347000
+Time to compute diffs: 3.072000
+Time to print results: 871.471000
+Total running time: 2957.352000
+
+Number of Cores: 16
+Time to read data: 1050.074000
+Time to compute sums: 763.554000
+Time to compute diffs: 2.436000
+Time to print results: 1153.812000
+Total running time: 2969.876000
+
+
+------------------------
+Number of Lines: 1000000
+------------------------
+
+Number of Cores: 1
+Time to read data: 1608.939000
+Time to compute sums: 1259.774000
+Time to compute diffs: 4.418000
+Time to print results: 1186.373000
+Total running time: 4059.504000
+
+Number of Cores: 2
+Time to read data: 1725.533000
+Time to compute sums: 1284.853000
+Time to compute diffs: 4.762000
+Time to print results: 1040.256000
+Total running time: 4055.404000
+
+Number of Cores: 4
+Time to read data: 1951.575000
+Time to compute sums: 1387.314000
+Time to compute diffs: 5.510000
+Time to print results: 1122.880000
+Total running time: 4467.279000
+
+Number of Cores: 8
+Time to read data: 1107.480000
+Time to compute sums: 1016.201000
+Time to compute diffs: 2.776000
+Time to print results: 1197.330000
+Total running time: 3323.787000
+
+Number of Cores: 16
+Time to read data: 1805.740000
+Time to compute sums: 1298.415000
+Time to compute diffs: 3.258000
+Time to print results: 1379.573000
+Total running time: 4486.986000
